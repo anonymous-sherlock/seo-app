@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="hero">
+        <h1>Powerful SEO Tool</h1>
+        <p>Get valuable insights and improve your website's performance</p>
+        <form
+          action="seo_analysis.php"
+          method="POST"
+          onsubmit="showScreenshot(event)"
+        >
+          <div class="form-group">
+            <input
+              type="text"
+              id="urlInput"
+              placeholder="Enter your website URL"
+            />
+            <button type="submit">Get Started</button>
+          </div>
+        </form>
+        <!-- result -->
+        <div id="result">
+          <div class="performance-report">
+            <h1>hello</h1>
+          </div>
+          <div id="screenshotContainer">
+            <div class="laptop-view">
+              <div class="horizontal-line"></div>
+              <img
+                src="images/laptop-screen.png"
+                alt="Laptop Screen"
+                class="laptop-image"
+              />
+            </div>
+            <div id="webCapture">
+              <!-- screenCapture image will be here after -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
