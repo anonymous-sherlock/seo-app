@@ -2,21 +2,13 @@ function showScreenshot(event) {
   event.preventDefault(); // Prevent form submission
 
   var url = document.getElementById("urlInput").value;
-  var screenshotContainer = document.getElementById("screenshotContainer");
-  var webCapture = document.getElementById("webCapture");
-  var laptopView = document.querySelector(".laptop-view");
-
-  // Add loading class to show the loader
-  laptopView.classList.add("loading");
+  var webCapture = document.getElementById("screen-shot");
 
   // Remove previously appended webCapture image
   webCapture.innerHTML = "";
 
-  // Show the screenshot container
-  screenshotContainer.style.display = "block";
-
   // Get the dimensions of the image based on the viewport
-  var imgElement = document.querySelector(".laptop-image");
+  var imgElement = document.querySelector(".mac-view");
   var imgRect = imgElement.getBoundingClientRect();
   var imgHeight = imgRect.height;
   var imgWidth = imgRect.width;
@@ -25,15 +17,13 @@ function showScreenshot(event) {
   img.src =
     "https://api.screenshotmachine.com/?key=f7ee5e&url=" +
     encodeURIComponent(url) +
-    `&dimension=${imgWidth * 2}x${imgHeight * 2 - 5}`;
+    `&dimension=${imgWidth * 3}x${imgHeight * 3}`;
 
-  img.classList.add("screenCapture");
+  img.classList.add("w-100");
   webCapture.appendChild(img);
 
   // Hide the loader after the image is loaded
   img.onload = function () {
-    laptopView.classList.remove("loading");
-
     // Perform SEO analysis
     performSEOAnalysis(url);
   };
@@ -62,3 +52,35 @@ function performSEOAnalysis(url) {
       console.log(error);
     });
 }
+
+// Generate Report Date
+const currentDate = new Date();
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const month = monthNames[currentDate.getMonth()];
+const day = currentDate.getDate();
+const year = currentDate.getFullYear();
+let hour = currentDate.getHours();
+const minute = currentDate.getMinutes();
+const period = hour >= 12 ? "pm" : "am";
+
+hour %= 12;
+hour = hour || 12;
+
+const formattedDate = `${month} ${day}, ${year} ${hour}:${minute
+  .toString()
+  .padStart(2, "0")} ${period}`;
+console.log("Report generated on", formattedDate);

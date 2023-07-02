@@ -3,21 +3,23 @@ body {
   margin: 0;
   padding: 0;
   font-family: Arial, sans-serif;
-  font-size: 16px;
   color: #333333;
-  background-color: #f5f5f5;
+  background-color: #f2f3f4;
+  text-align: left;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
-  text-align: center;
 }
 
 /* Hero Section Styles */
 .hero {
   padding: 100px 0;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
 }
 
 .hero h1 {
@@ -41,7 +43,7 @@ body {
   margin: 0 auto;
 }
 
-.form-group input[type="text"] {
+.seo-analysis-form .form-group input[type="text"] {
   padding: 20px;
   flex-grow: 2;
   border-radius: 3px 0 0 3px;
@@ -49,16 +51,18 @@ body {
   background-color: #333333;
   color: #ffffff;
   font-size: 18px;
+  width: 65%;
 }
 
-.form-group button {
+.seo-analysis-form .form-group button {
   font-size: 18px;
-  padding: 20px 40px;
+  padding: 20px 0px;
   background-color: #ff7f00;
   color: #ffffff;
   border: none;
   border-radius: 0 3px 3px 0;
   cursor: pointer;
+  width: 35%;
 }
 
 #screenshotContainer {
@@ -172,4 +176,13 @@ img.screenCapture {
   background-color: white;
   border: 1px solid gainsboro;
   border-radius: 15px;
+}
+
+@media screen and (max-width: 768px) {
+  .hero h1 {
+    font-size: 36px;
+  }
+  .container {
+    padding: 10px !important ;
+  }
 }
