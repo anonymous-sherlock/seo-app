@@ -1,8 +1,9 @@
 function showScreenshot(event) {
   event.preventDefault(); // Prevent form submission
-
   var url = document.getElementById("urlInput").value;
   var webCapture = document.getElementById("screen-shot");
+  var reportDate = document.getElementById("generated-report-date");
+  reportDate.innerHTML = generateReportDate();
 
   // Remove previously appended webCapture image
   webCapture.innerHTML = "";
@@ -49,38 +50,40 @@ function performSEOAnalysis(url) {
     })
     .catch(function (error) {
       // Handle errors
-      console.log(error);
+      alert("An error occurred: " + error.message);
     });
 }
 
-// Generate Report Date
-const currentDate = new Date();
-const monthNames = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+function generateReportDate() {
+  const currentDate = new Date();
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
 
-const month = monthNames[currentDate.getMonth()];
-const day = currentDate.getDate();
-const year = currentDate.getFullYear();
-let hour = currentDate.getHours();
-const minute = currentDate.getMinutes();
-const period = hour >= 12 ? "pm" : "am";
+  const month = monthNames[currentDate.getMonth()];
+  const day = currentDate.getDate();
+  const year = currentDate.getFullYear();
+  let hour = currentDate.getHours();
+  const minute = currentDate.getMinutes();
+  const period = hour >= 12 ? "pm" : "am";
 
-hour %= 12;
-hour = hour || 12;
+  hour %= 12;
+  hour = hour || 12;
 
-const formattedDate = `${month} ${day}, ${year} ${hour}:${minute
-  .toString()
-  .padStart(2, "0")} ${period}`;
-console.log("Report generated on", formattedDate);
+  const formattedDate = `${month} ${day}, ${year} ${hour}:${minute
+    .toString()
+    .padStart(2, "0")} ${period}`;
+
+  return "Report generated on " + formattedDate;
+}

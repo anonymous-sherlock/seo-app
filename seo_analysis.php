@@ -1,5 +1,7 @@
 <?php
 header('Content-Type: application/json');
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 $url = $_GET['url'];
 
@@ -8,6 +10,12 @@ if (!filter_var($url, FILTER_VALIDATE_URL)) {
   echo json_encode(['error' => 'Invalid URL']);
   exit;
 }
+
+
+// Extract the domain from the provided URL
+$urlParts = parse_url($url);
+$domain = $urlParts['host'];
+
 
 // Function to fetch the HTML content of a URL
 function fetchHTML($url)
@@ -102,7 +110,7 @@ $xpath = new DOMXPath($dom);
 
 // language
 $language = $dom->documentElement->getAttribute('lang');
-// Extract the title, favicon, headings, description, images, language
+// title
 $titleNode = $xpath->query('//title')->item(0);
 $title = $titleNode ? $titleNode->textContent : '';
 // favicon
@@ -112,12 +120,14 @@ $favicon = $faviconNode ? $faviconNode->textContent : '';
 $headings = ['h1' => '', 'h2' => '', 'h3' => '', 'h4' => ''];
 foreach ($headings as $heading => &$value) {
   $headingNode = $xpath->query("//{$heading}")->item(0);
-  $value = $headingNode ? $headingNode->textContent : '';
+  $value = $headingNode ? preg_replace('/\s+/', ' ', trim($headingNode->textContent)) : '';
 }
+
+
+
 // meta description
 $descriptionNode = $xpath->query('//meta[@name="description"]/@content')->item(0);
 $description = $descriptionNode ? $descriptionNode->textContent : '';
-
 
 // Calculate the DOM size Function to count the nodes in the DOM
 function countNodes($node)
@@ -144,25 +154,205 @@ $hasDoctype = strpos($html, '<!DOCTYPE html>') !== false;
 // Extract the server signature from the response headers
 $headers = get_headers($url, 1);
 $serverSignature = isset($headers['Server']) ? $headers['Server'] : null;
-
-// new code add here
-
-// Extract images without alt attribute text and total images used in website
+// Initialize totalImageCount
 $totalImageCount = 0;
+// Extract images without alt attribute text and total images used on the website
 $imagesWithoutAltText = [];
-$imageNodes = $xpath->query('//img[not(@alt) or @alt=""]');
+$imageNodes = $xpath->query('//img');
 foreach ($imageNodes as $imageNode) {
   $src = $imageNode->getAttribute('src');
   if (!empty($src)) {
-    $imagesWithoutAltText[] = $src;
-
+    // Check if the alt attribute is empty or not present
+    $alt = $imageNode->getAttribute('alt');
+    if (empty($alt)) {
+      $imagesWithoutAltText[] = $src;
+    }
+    $totalImageCount++;
   }
-  // Increment totalImageCount only if src is not blank
-  $totalImageCount++;
+}
+// Extract internal links with link text
+$internalLinks = [];
+$internalLinkUrls = [];
+$internalLinkNodes = $xpath->query('//a[not(starts-with(@href, "#"))]');
+foreach ($internalLinkNodes as $linkNode) {
+    $href = $linkNode->getAttribute('href');
+    $text = trim(preg_replace('/\s+/', ' ', $linkNode->textContent));
+
+    if (!empty($href) && !empty($text)) {
+        // Check if $href is an absolute URL and belongs to the same domain
+        if (filter_var($href, FILTER_VALIDATE_URL)) {
+            $parsedHref = parse_url($href);
+
+            if (isset($parsedHref['host']) && $parsedHref['host'] === parse_url($url, PHP_URL_HOST)) {
+                $fullUrl = $href;
+            } else {
+                continue; // Skip external URLs
+            }
+        } else {
+            $base = rtrim($url, '/');
+            $separator = '/';
+            if (substr($href, 0, 1) === '/') {
+                $separator = '';
+            }
+            $fullUrl = $base . $separator . $href;
+        }
+
+        $lowercaseUrl = strtolower($fullUrl);
+
+        // Check if the lowercase URL has already been added to the array
+        $isInternalLink = isset($internalLinkUrls[$lowercaseUrl]);
+
+        if (!$isInternalLink) {
+            $internalLinks[] = [
+                'url' => $fullUrl,
+                'text' => $text
+            ];
+
+            // Add the lowercase URL to the list of added URLs
+            $internalLinkUrls[$lowercaseUrl] = true;
+        }
+    }
 }
 
+// Extract external links with link text
+$externalLinks = [];
+$externalLinkNodes = $xpath->query('//a[not(starts-with(@href, "/")) and not(starts-with(@href, "#"))]');
+foreach ($externalLinkNodes as $linkNode) {
+  $href = $linkNode->getAttribute('href');
+  $text = trim(preg_replace('/\s+/', ' ', $linkNode->textContent));
+
+  if (empty($href) || empty($text)) {
+    continue; // Skip if href or text is empty
+  }
+
+  $linkParts = parse_url($href);
+
+  // Skip if URL parsing failed
+  if (!$linkParts || !isset($linkParts['host'])) {
+    continue;
+  }
+  $linkDomain = $linkParts['host'];
+
+  // Normalize the link domain and current domain for comparison
+  $normalizedLinkDomain = rtrim(strtolower($linkDomain), '/');
+  $normalizedCurrentDomain = rtrim(strtolower($domain), '/');
+
+  if ($normalizedLinkDomain === $normalizedCurrentDomain) {
+    continue; // Skip if link belongs to the same domain
+  }
+
+  $href = rtrim($href, '/');
+
+  // Check if the link is already added to internal or external links
+  $isDuplicate = false;
+  foreach ($internalLinks as $link) {
+    if ($link['url'] === $href) {
+      $isDuplicate = true;
+      break;
+    }
+  }
+  foreach ($externalLinks as $link) {
+    if ($link['url'] === $href) {
+      $isDuplicate = true;
+      break;
+    }
+  }
+
+  if (!$isDuplicate) {
+    $externalLinks[] = [
+      'url' => $href,
+      'text' => $text
+    ];
+  }
+}
+// Function to retrieve the character encoding declaration
+function getCharacterEncoding($html)
+{
+  $dom = new DOMDocument();
+  libxml_use_internal_errors(true);
+  $dom->loadHTML($html);
+  libxml_use_internal_errors(false);
+  $metaTags = $dom->getElementsByTagName('meta');
+  foreach ($metaTags as $metaTag) {
+    if ($metaTag->hasAttribute('charset')) {
+      return $metaTag->getAttribute('charset'); // Return the character encoding
+    }
+  }
+  return null; // No character encoding declaration found
+}
+$characterEncoding = getCharacterEncoding($html);
+// Function to check viewport meta tag content
+function getViewportContent($html)
+{
+  $dom = new DOMDocument();
+  libxml_use_internal_errors(true);
+  $dom->loadHTML($html);
+  libxml_use_internal_errors(false);
+  $metaTags = $dom->getElementsByTagName('meta');
+  foreach ($metaTags as $metaTag) {
+    if ($metaTag->hasAttribute('name') && $metaTag->getAttribute('name') === 'viewport') {
+      return $metaTag->getAttribute('content');
+    }
+  }
+  return null; // Viewport meta tag does not exist or does not match the desired attributes
+}
+// Function to check if the viewport meta tag exists
+$viewportContent = getViewportContent($html);
+// Function to get the canonical URL
+function getCanonicalUrl($html)
+{
+  $dom = new DOMDocument();
+  libxml_use_internal_errors(true);
+  $dom->loadHTML($html);
+  libxml_use_internal_errors(false);
+
+  $linkTags = $dom->getElementsByTagName('link');
+  foreach ($linkTags as $linkTag) {
+    if ($linkTag->getAttribute('rel') === 'canonical') {
+      return $linkTag->getAttribute('href'); // Return the canonical URL
+    }
+  }
+
+  return false; // Canonical URL not found
+}
+// Check if the canonical URL exists
+$hasCanonicalUrl = getCanonicalUrl($html);
+// new code add here
 
 
+
+// Function to check if a sitemap exists
+// Function to check if a sitemap exists and follow redirects
+function checkSitemap($url)
+{
+  $sitemapUrl = rtrim($url, '/') . '/sitemap.xml';
+  
+  $options = array(
+    'http' => array(
+      'method' => 'HEAD',
+      'follow_location' => true // Follow redirects
+    )
+  );
+  $context = stream_context_create($options);
+  $headers = get_headers($sitemapUrl, 1, $context);
+  
+  if (isset($headers['Location'])) {
+    if (is_array($headers['Location'])) {
+      return $headers['Location'][count($headers['Location']) - 1]; // Return the final URL after following redirects
+    } else {
+      return $headers['Location'];
+    }
+  }
+  
+  if ($headers && strpos($headers[0], '200') !== false) {
+    return $sitemapUrl; // Sitemap exists and returns a 200 status code
+  }
+  
+  return false; // Sitemap does not exist or returns a non-200 status code
+}
+
+// Check if the sitemap exists
+$sitemapUrl = checkSitemap($url);
 
 
 
@@ -172,21 +362,27 @@ foreach ($imageNodes as $imageNode) {
 // Build the SEO report array
 $report = [
   'url' => $url,
-  'title' => $title,
   'favicon' => $favicon,
-  'headings' => $headings,
-  'description' => $description,
   'language' => $language,
+  'hasDoctype' => $hasDoctype,
+  'sitemap' => $sitemapUrl,
+  'characterEncoding' => $characterEncoding,
+  'title' => $title,
+  'description' => $description,
+  'headings' => $headings,
   'hasNofollow' => $hasNofollow,
   'hasNoindex' => $hasNoindex,
   'hasRobotsTxt' => $hasRobotsTxt,
+  'hasViewport' => $viewportContent,
+  'hasCanonicalUrl' => $hasCanonicalUrl,
   'redirects' => $redirects,
   'pageSize' => $pageSize,
   'domSize' => $domSize,
-  'hasDoctype' => $hasDoctype,
   'serverSignature' => $serverSignature,
   'imagesWithoutAlt' => $imagesWithoutAltText,
-  'totalImageCount' => $totalImageCount
+  'totalImageCount' => $totalImageCount,
+  'internalLinks' => $internalLinks,
+  'externalLinks' => $externalLinks
 ];
 
 // Send the report as JSON response
