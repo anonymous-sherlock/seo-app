@@ -10,6 +10,8 @@ function searchMixedContent($document, $url)
     $isSecure = isset($parsedUrl['scheme']) && strtolower($parsedUrl['scheme']) === 'https';
 
     if ($isSecure) {
+
+        // Images
         foreach ($document->getElementsByTagName('img') as $node) {
             if (!empty($node->getAttribute('src'))) {
                 $src = $node->getAttribute('src');
@@ -20,6 +22,7 @@ function searchMixedContent($document, $url)
             }
         }
 
+        // JavaScript
         foreach ($document->getElementsByTagName('script') as $node) {
             if ($node->getAttribute('src')) {
                 $src = $node->getAttribute('src');
@@ -30,6 +33,7 @@ function searchMixedContent($document, $url)
             }
         }
 
+        // CSS (Stylesheets)
         foreach ($document->getElementsByTagName('link') as $node) {
             if (preg_match('/\bstylesheet\b/', $node->getAttribute('rel'))) {
                 $href = $node->getAttribute('href');
@@ -40,6 +44,7 @@ function searchMixedContent($document, $url)
             }
         }
 
+        // Videos
         foreach ($document->getElementsByTagName('source') as $node) {
             if (!empty($node->getAttribute('src')) && stripos($node->getAttribute('type'), 'video/') === 0) {
                 $src = $node->getAttribute('src');
@@ -48,7 +53,10 @@ function searchMixedContent($document, $url)
                     $total_requests++;
                 }
             }
+        }
 
+        // Audios
+        foreach ($document->getElementsByTagName('source') as $node) {
             if (!empty($node->getAttribute('src')) && stripos($node->getAttribute('type'), 'audio/') === 0) {
                 $src = $node->getAttribute('src');
                 if (stripos($src, 'http://') === 0) {
@@ -58,6 +66,7 @@ function searchMixedContent($document, $url)
             }
         }
 
+        // Iframes
         foreach ($document->getElementsByTagName('iframe') as $node) {
             if (!empty($node->getAttribute('src'))) {
                 $src = $node->getAttribute('src');
@@ -68,7 +77,16 @@ function searchMixedContent($document, $url)
             }
         }
 
-        // ... (repeat the same for other elements: script, link, source, iframe, audio)
+        // Anchor links
+        foreach ($document->getElementsByTagName('a') as $node) {
+            if (!empty($node->getAttribute('href'))) {
+                $href = $node->getAttribute('href');
+                if (stripos($href, 'http://') === 0) {
+                    $mixedContent['links'][] = $href;
+                    $total_requests++;
+                }
+            }
+        }
     }
 
     // Debug statements
