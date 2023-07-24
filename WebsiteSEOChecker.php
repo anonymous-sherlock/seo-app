@@ -1,21 +1,53 @@
 <?php
-
 require_once __DIR__ . '/partials/most-common-keywords.php';
 require_once __DIR__ . '/partials/404-page.php';
-
+require_once __DIR__ . '/partials/inpage-links.php';
+require_once __DIR__ . '/partials/robots-txt.php';
+require_once __DIR__ . '/partials/meta-robots.php';
+require_once __DIR__ . '/partials/spf-record.php';
+require_once __DIR__ . '/partials/http-requests.php';
+require_once __DIR__ . '/partials/modern-image-formats.php';
+require_once __DIR__ . '/partials/redirects.php';
+require_once __DIR__ . '/partials/defer-javascript.php';
+require_once __DIR__ . '/partials/framesets-and-nested-tables.php';
+require_once __DIR__ . '/partials/plain-text-email.php';
+require_once __DIR__ . '/partials/check-ssl.php';
+require_once __DIR__ . '/partials/mixed-content.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\TransferStats;
+use Psr\Http\Message\ResponseInterface;
+
+
 
 class WebsiteSEOChecker
 {
     private $client;
+    private $dom;
+    private $xpath;
+    private $loadtime = 0;
+    private $domainUrl = null;
+    private $server = null;
+    private $encoding = null;
+    private $http2 = false;
+    private $hsts = false;
 
     public function __construct()
     {
         $this->client = new Client();
+        $this->dom = new DOMDocument();
     }
 
+    private function loadHTML($html)
+    {
+        libxml_use_internal_errors(true); // Ignore any HTML parsing errors
+        $this->dom->preserveWhiteSpace = false;
+        $this->dom->formatOutput = false;
+        $this->dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD); // Add options here
+        libxml_use_internal_errors(false);
+        $this->xpath = new DOMXPath($this->dom);
+    }
     public function checkSEO($url)
     {
         try {
@@ -24,26 +56,72 @@ class WebsiteSEOChecker
             if (!$url) {
                 throw new InvalidArgumentException('Please Enter a Valid URL.');
             }
+            // Extract the domain from the URL
+            $domain = parse_url($url, PHP_URL_HOST);
+            $this->domainUrl = $domain;
+
 
             // Fetch the HTML content of the provided URL
+            $seoInfo = [];
+            $pageStart = microtime(true);
             $html = $this->fetchHTML($url);
-
+            $pageEnd = microtime(true);
+            $this->loadtime = round($pageEnd - $pageStart, 2);;
             // Process the HTML content and extract SEO information
-            $seoInfo = $this->processHTML($html);
-            // Analyze the HTML and get the most common keywords
+            $this->loadHTML($html);
+            $seoInfo['url'] = $url;
+            $seoInfo['domain'] = $domain;
+            $seoInfo['pageSize'] = mb_strlen($html, '8bit');
+            $seoInfo['redirects'] = checkURLRedirects($url);
+            $seoInfo['loadtime'] =  $this->loadtime;
+            $seoInfo['encoding'] =  $this->encoding;
+            $seoInfo['server'] = $this->server;
+            $seoInfo['http2'] = $this->http2;
+            $seoInfo['hsts'] = $this->hsts;
+            $seoInfo['nonDeferJs'] =  getJavaScriptsWithoutDefer($this->xpath);
+            $seoInfo['nestedTables'] =  nestedTablesTest($this->xpath);
+            $seoInfo['framesets'] =  framesetsTest($this->xpath);
+            $seoInfo['plainTextEmail'] =  plainTextEmail($this->xpath);
+            $seoInfo['ssl'] = getSSLCertificateInfo($domain);
 
-            $starttime = microtime(true);
+
+
+            // Debug: Check nested tables with XPath query
+            // $seoInfo['mixedContent'] = 
+            $s = microtime(true);
+            searchMixedContent($this->dom, $url);
+            $e = microtime(true);
+            $exet = $e - $s;
+            // echo 'Execution time is ' . $exet . PHP_EOL; 
+            $seoInfo = $this->processHTML($seoInfo);
+
+
+
+
+
+
+            // Analyze the HTML and get the most common keywords
             $analyzer = new MostCommonKeywordsAnalyzer('partials/stopwords/en.json');
             $keywordsInfo = $analyzer->analyzeHTML($html);
-            $isCustom404Page = is404Page($this->client, $url);
 
-            $seoInfo['404Page'] = $isCustom404Page;
-            // Append the keywords information to the $seoInfo array
+            $seoInfo['404Page'] = is404Page($this->client, $url);
             $seoInfo['contentLength'] = $keywordsInfo['contentLength'];
+            $seoInfo['robotsTxt'] = checkRobotsTxt($this->client, $domain);
+            $seoInfo['noFollow'] = hasMetaTag($this->xpath, 'name', ['nofollow']);
+            $seoInfo['noIndex'] = hasMetaTag($this->xpath, 'name', ['noindex']);
+            $seoInfo['spfRecord'] = getSPFRecord($domain);
+
+
+            $extractLinks = extract_links($url, $this->xpath);
+
             $seoInfo['commonKeywords'] = $keywordsInfo['keywordsWithCount'];
-            $endtime = microtime(true);
-            $executionTime = $endtime - $starttime;
-            // echo "Execution time: " . $executionTime . " seconds\n" . PHP_EOL;
+            $seoInfo['nonSEOFriendlyLinks'] = $extractLinks['nonSEOFriendlyLinks'];
+            $seoInfo['internalLinks'] = $extractLinks['internalLinks'];
+            $seoInfo['externalLinks'] = $extractLinks['externalLinks'];
+            $seoInfo['httpRequests'] = getHttpRequestsByType($this->dom);
+
+
+
 
 
             return $seoInfo;
@@ -56,21 +134,36 @@ class WebsiteSEOChecker
 
     private function fetchHTML($url)
     {
-        $response = $this->client->get($url, [
-            'headers' => [
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
-                'Accept-Encoding' => 'gzip',
-                // Enable gzip compression
-            ],
-            'timeout' => 5,
-            // Set a timeout of 5 seconds
-            'http_version' => '2.0', // Use HTTP/2.0 if supported
-        ]);
+        $response = $this->client->get(
+            $url,
+            [
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
+                    'Accept-Encoding' => 'gzip',
+                    // Enable gzip compression
+                ],
+                'on_stats' => function (TransferStats $stats) {
+                    $this->http2 = $stats->getHandlerStat('http_version') === 2;
+                },
+                'on_headers' => function (ResponseInterface $response) {
+                    $servers = array_filter($response->getHeader('server'), function ($value) {
+                        return !in_array($value, ['amazon', 'cloudflare', 'gws', 'Server', 'Apple', 'tsa_o', 'ATS']);
+                    });
+                    $this->hsts = count($response->getHeader('Strict-Transport-Security')) !== 0;
+                    $this->server = $servers;
+                    $this->encoding = $response->getHeader('x-encoded-content-encoding');
+                },
+
+                'timeout' => 5,
+                // Set a timeout of 5 seconds
+                'http_version' => '2.0', // Use HTTP/2.0 if supported
+            ]
+        );
 
         $contentEncoding = $response->getHeaderLine('Content-Encoding');
         $body = (string) $response->getBody();
 
-        // Check if the response is gzipped
+        // Check if the response is gzippedcontent
         if ($contentEncoding === 'gzip') {
             // Uncompress the gzipped content
             $body = gzdecode($body);
@@ -79,55 +172,73 @@ class WebsiteSEOChecker
         return $body;
     }
 
-    private function processHTML($html)
+    private function processHTML(&$seoInfo)
     {
-        libxml_use_internal_errors(true); // Ignore any HTML parsing errors
-        $dom = new DOMDocument();
-        $dom->preserveWhiteSpace = false;
-        $dom->formatOutput = false;
-        $dom->loadHTML($html);
-        libxml_use_internal_errors(false);
-        // Create a DOMXPath object to query the DOM
-        $xpath = new DOMXPath($dom);
-        // response variable intialize
-        $seoInfo = [];
+        // response variable initialize
+        $seoInfo['domSize'] = count($this->dom->getElementsByTagName('*'));
+        $seoInfo['hasDoctype'] = strpos($this->dom->saveHTML(), '<!DOCTYPE html>') !== false;
+        $seoInfo['language'] = $this->dom->documentElement->getAttribute('lang');
 
-        $seoInfo['hasDoctype'] = strpos($html, '<!DOCTYPE html>') !== false;
-        $seoInfo['language'] = $dom->documentElement->getAttribute('lang');
-        $seoInfo['framesets'] = $xpath->evaluate('count(//frameset) > 0') ?: false;
-        $faviconNode = $xpath->query('/html/head/link[@rel="icon" or @rel="shortcut icon"]/@href')->item(0);
+        // Use $this->xpath directly for querying
+        $faviconNode = $this->xpath->query('/html/head/link[@rel="icon" or @rel="shortcut icon"]/@href')->item(0);
         if ($faviconNode) {
             $seoInfo['favicon'] = $faviconNode->nodeValue;
         }
-        $titleNode = $xpath->query('/html/head/title')->item(0);
+
+        $titleNode = $this->xpath->query('/html/head/title')->item(0);
         $seoInfo['title'] = $titleNode ? $titleNode->nodeValue : false;
+
         // meta description
-        $descriptionNode = $xpath->query('/html/head/meta[@name="description"]/@content')->item(0);
+        $descriptionNode = $this->xpath->query('/html/head/meta[@name="description"]/@content')->item(0);
         $seoInfo['description'] = $descriptionNode ? $descriptionNode->nodeValue : false;
+
         // Extract meta keywords
-        $keywordsNode = $xpath->query('/html/head/meta[@name="keywords"]/@content')->item(0);
+        $keywordsNode = $this->xpath->query('/html/head/meta[@name="keywords"]/@content')->item(0);
         $seoInfo['metaKeywords'] = $keywordsNode ? $keywordsNode->nodeValue : false;
+
         // Headings
         $headings = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
         $seoInfo['headings'] = [];
         foreach ($headings as $heading) {
-            $headingNodes = $xpath->query("//{$heading}");
+            $headingNodes = $this->xpath->query("//{$heading}");
             foreach ($headingNodes as $headingNode) {
                 $text = trim($headingNode->textContent);
                 $seoInfo['headings'][$heading][] = $text;
             }
         }
-        // image extract 
-        $imageNodes = $xpath->query('//img[@src]');
-        $seoInfo['totalImageCount'] = $imageNodes->length;
-        foreach ($imageNodes as $imageNode) {
-            $alt = $imageNode->getAttribute('alt');
-            if (empty($alt)) {
-                $seoInfo['imagesWithoutAltText'][] = $imageNode->getAttribute('src');
-            }
-        }
 
+        // image extract 
+        $starttime = microtime(true);
+        $imageNodes = $this->xpath->query('//img[@src]');
+        $seoInfo['totalImageCount'] = $imageNodes->length;
+        $seoInfo['images'] = [];
+
+        // Collect the image URLs to check for image formats
+        $imageUrls = [];
+        foreach ($imageNodes as $imageNode) {
+            $imageSrc = $imageNode->getAttribute('src');
+            $imageUrls[] = $imageSrc;
+            $imageAlt = $imageNode->getAttribute('alt');
+            $imageTitle = $imageNode->getAttribute('title');
+
+            $imageInfo = [
+                'src' => $imageSrc,
+                'alt' => $imageAlt,
+                'title' => $imageTitle,
+            ];
+            $seoInfo['images'][] = $imageInfo;
+        }
+        // Fetch image formats asynchronously using the helper function
+        $imageFormats = checkImageFormats($imageUrls); // Wait for the promises to complete
+        $seoInfo['notModernImage'] = $imageFormats;
+
+
+        // execution time analyze
+        $endtime = microtime(true);
+        $executionTime = $endtime - $starttime;
+        // echo "Execution time: " . $executionTime . " seconds\n" . PHP_EOL;
         // Add more code here to extract other SEO information as needed
+
         return $seoInfo;
     }
 }

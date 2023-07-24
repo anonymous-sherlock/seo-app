@@ -10,6 +10,7 @@ class ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0
         '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
         '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
         '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
+        '9b38cf48e83f5d8f60375221cd213eee' => __DIR__ . '/..' . '/phpstan/phpstan/bootstrap.php',
         '941748b3c8cae4466c827dfb5ca9602a' => __DIR__ . '/..' . '/rmccue/requests/library/Deprecated.php',
     );
 
@@ -52,7 +53,7 @@ class ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0
         ),
         'Project\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/project',
+            0 => __DIR__ . '/../..' . '/sue',
         ),
         'GuzzleHttp\\Psr7\\' => 
         array (
@@ -72,16 +73,6 @@ class ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0
         ),
     );
 
-    public static $prefixesPsr0 = array (
-        'T' => 
-        array (
-            'Text' => 
-            array (
-                0 => __DIR__ . '/..' . '/pear/text_languagedetect',
-            ),
-        ),
-    );
-
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'Requests' => __DIR__ . '/..' . '/rmccue/requests/library/Requests.php',
@@ -92,7 +83,6 @@ class ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0::$prefixDirsPsr4;
-            $loader->prefixesPsr0 = ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0::$prefixesPsr0;
             $loader->classMap = ComposerStaticInitadb1f0e698c51a09e052e6aebde092d0::$classMap;
 
         }, null, ClassLoader::class);

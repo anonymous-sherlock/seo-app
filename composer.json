@@ -8,8 +8,9 @@
   "require": {
     "donatello-za/rake-php-plus": "^1.0",
     "guzzlehttp/guzzle": "^7.7",
-    "rmccue/requests": "^2.0",
-    "seostats/seostats": "^2.5",
-    "pear/text_languagedetect": "^1.0"
+    "rmccue/requests": "^2.0"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^1.10"
   }
 }
