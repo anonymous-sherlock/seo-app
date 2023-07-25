@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/partials/utils/registery.php';
 require_once __DIR__ . '/partials/most-common-keywords.php';
 require_once __DIR__ . '/partials/404-page.php';
 require_once __DIR__ . '/partials/inpage-links.php';
@@ -13,11 +14,19 @@ require_once __DIR__ . '/partials/framesets-and-nested-tables.php';
 require_once __DIR__ . '/partials/plain-text-email.php';
 require_once __DIR__ . '/partials/check-ssl.php';
 require_once __DIR__ . '/partials/mixed-content.php';
+require_once __DIR__ . '/partials/unsafe-cross-origin-links.php';
+require_once __DIR__ . '/partials/social-media-links.php';
+require_once __DIR__ . '/partials/social-media-links.php';
+require_once __DIR__ . '/partials/structured-data.php';
+require_once __DIR__ . '/partials/social-media-meta-tags.php';
+require_once __DIR__ . '/partials/inline-css.php';
+require_once __DIR__ . '/partials/analytics.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\TransferStats;
 use Psr\Http\Message\ResponseInterface;
+
 
 
 
@@ -59,7 +68,7 @@ class WebsiteSEOChecker
             // Extract the domain from the URL
             $domain = parse_url($url, PHP_URL_HOST);
             $this->domainUrl = $domain;
-
+            Registery::setDomain($domain);
 
             // Fetch the HTML content of the provided URL
             $seoInfo = [];
@@ -69,30 +78,43 @@ class WebsiteSEOChecker
             $this->loadtime = round($pageEnd - $pageStart, 2);;
             // Process the HTML content and extract SEO information
             $this->loadHTML($html);
+
+            $s = microtime(true);
+
             $seoInfo['url'] = $url;
             $seoInfo['domain'] = $domain;
+            $seoInfo['canonical'] = getCanonicalUrl($this->xpath);
             $seoInfo['pageSize'] = mb_strlen($html, '8bit');
             $seoInfo['redirects'] = checkURLRedirects($url);
-            $seoInfo['loadtime'] =  $this->loadtime;
-            $seoInfo['encoding'] =  $this->encoding;
+            $seoInfo['loadtime'] = $this->loadtime;
+            $seoInfo['encoding'] = $this->encoding;
             $seoInfo['server'] = $this->server;
             $seoInfo['http2'] = $this->http2;
             $seoInfo['hsts'] = $this->hsts;
-            $seoInfo['nonDeferJs'] =  getJavaScriptsWithoutDefer($this->xpath);
-            $seoInfo['nestedTables'] =  nestedTablesTest($this->xpath);
-            $seoInfo['framesets'] =  framesetsTest($this->xpath);
-            $seoInfo['plainTextEmail'] =  plainTextEmail($this->xpath);
+            $seoInfo['viewport'] = getViewportContent($this->xpath);
+            $seoInfo['characterEncoding'] = getCharacterEncoding($html);
+            $seoInfo['googleTrackingID'] = extractTrackingID($html);
+            $seoInfo['nonDeferJs'] = getJavaScriptsWithoutDefer($this->xpath);
+            $seoInfo['nestedTables'] = nestedTablesTest($this->xpath);
+            $seoInfo['framesets'] = framesetsTest($this->xpath);
+            $seoInfo['plainTextEmail'] = plainTextEmail($this->xpath);
             $seoInfo['ssl'] = getSSLCertificateInfo($domain);
-
-
-
+            $seoInfo['mixedContent'] = searchMixedContent($this->dom, $url);
+            $seoInfo['unsafeLinks'] = checkUnsafeCrossOriginLinks($this->xpath, $url);
+            $seoInfo['Socails'] = getSocialMediaProfiles($this->xpath);
+            $seoInfo['socialMetaTags'] = extractSocialMediaMetaTags($this->xpath);
+            $seoInfo['structuredData'] = extractStructuredData($this->xpath);
+            $seoInfo['deprecatedTags'] = checkDeprecatedHTMLTags($this->xpath);
+            $seoInfo['inlineCss'] = extractInlineCSS($this->xpath);
+            
+            
+            
+            
             // Debug: Check nested tables with XPath query
             // $seoInfo['mixedContent'] = 
-            $s = microtime(true);
-            searchMixedContent($this->dom, $url);
             $e = microtime(true);
             $exet = $e - $s;
-            // echo 'Execution time is ' . $exet . PHP_EOL; 
+            // echo 'Execution time is ' . $exet . PHP_EOL;
             $seoInfo = $this->processHTML($seoInfo);
 
 
@@ -156,7 +178,8 @@ class WebsiteSEOChecker
 
                 'timeout' => 5,
                 // Set a timeout of 5 seconds
-                'http_version' => '2.0', // Use HTTP/2.0 if supported
+                'http_version' => '2.0',
+                // Use HTTP/2.0 if supported
             ]
         );
 

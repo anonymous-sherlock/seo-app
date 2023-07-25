@@ -3,7 +3,7 @@
 function searchMixedContent($document, $url)
 {
     $mixedContent = [];
-    $total_requests =  0;
+    $total_requests = 0;
 
     // Search only if secure URL (HTTPS)
     $parsedUrl = parse_url($url);
@@ -77,20 +77,17 @@ function searchMixedContent($document, $url)
             }
         }
 
-        // Anchor links
-        foreach ($document->getElementsByTagName('a') as $node) {
-            if (!empty($node->getAttribute('href'))) {
-                $href = $node->getAttribute('href');
-                if (stripos($href, 'http://') === 0) {
-                    $mixedContent['links'][] = $href;
-                    $total_requests++;
-                }
-            }
-        }
+        // // Anchor links
+        // foreach ($document->getElementsByTagName('a') as $node) {
+        //     if (!empty($node->getAttribute('href'))) {
+        //         $href = $node->getAttribute('href');
+        //         if (stripos($href, 'http://') === 0) {
+        //             $mixedContent['links'][] = $href;
+        //             $total_requests++;
+        //         }
+        //     }
+        // }
     }
-
-    // Debug statements
-    print_r($mixedContent);
 
     return [
         'total_requests' => $total_requests,

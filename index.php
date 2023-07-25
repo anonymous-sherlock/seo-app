@@ -11,7 +11,6 @@ try {
     // Get the URL from the query parameter
     $url = $_GET['url'];
 
-
     $seoChecker = new WebsiteSEOChecker();
     $seoInfo = $seoChecker->checkSEO($url);
 
