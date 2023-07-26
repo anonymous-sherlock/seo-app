@@ -1,15 +1,31 @@
 <?php
+// $files = glob(__DIR__ . '/partials/*.php');
+
+// $filesToExclude = [
+//     // 'deprecated-html-tags.php',
+//     // Add more file names to exclude here...
+// ];
+
+// foreach ($files as $file) {
+//     $fileName = basename($file);
+//     // Check if the file should be excluded
+//     if (!in_array($fileName, $filesToExclude)) {
+//         require_once $file;
+//     }
+// }
+
 require_once __DIR__ . '/partials/utils/registery.php';
 require_once __DIR__ . '/partials/most-common-keywords.php';
 require_once __DIR__ . '/partials/404-page.php';
 require_once __DIR__ . '/partials/inpage-links.php';
-require_once __DIR__ . '/partials/robots-txt.php';
+require_once __DIR__ . '/partials/robots-sitemap-text.php';
 require_once __DIR__ . '/partials/meta-robots.php';
 require_once __DIR__ . '/partials/spf-record.php';
 require_once __DIR__ . '/partials/http-requests.php';
 require_once __DIR__ . '/partials/modern-image-formats.php';
 require_once __DIR__ . '/partials/redirects.php';
 require_once __DIR__ . '/partials/defer-javascript.php';
+require_once __DIR__ . '/partials/deprecated-html-tags.php';
 require_once __DIR__ . '/partials/framesets-and-nested-tables.php';
 require_once __DIR__ . '/partials/plain-text-email.php';
 require_once __DIR__ . '/partials/check-ssl.php';
@@ -26,7 +42,6 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\TransferStats;
 use Psr\Http\Message\ResponseInterface;
-
 
 
 
@@ -57,6 +72,7 @@ class WebsiteSEOChecker
         libxml_use_internal_errors(false);
         $this->xpath = new DOMXPath($this->dom);
     }
+
     public function checkSEO($url)
     {
         try {
@@ -68,7 +84,7 @@ class WebsiteSEOChecker
             // Extract the domain from the URL
             $domain = parse_url($url, PHP_URL_HOST);
             $this->domainUrl = $domain;
-            Registery::setDomain($domain);
+            // base url
 
             // Fetch the HTML content of the provided URL
             $seoInfo = [];
@@ -86,6 +102,7 @@ class WebsiteSEOChecker
             $seoInfo['canonical'] = getCanonicalUrl($this->xpath);
             $seoInfo['pageSize'] = mb_strlen($html, '8bit');
             $seoInfo['redirects'] = checkURLRedirects($url);
+            $seoInfo['sitemap'] = checkRobotsAndSitemap($domain, $url, $this->client);
             $seoInfo['loadtime'] = $this->loadtime;
             $seoInfo['encoding'] = $this->encoding;
             $seoInfo['server'] = $this->server;
@@ -106,10 +123,10 @@ class WebsiteSEOChecker
             $seoInfo['structuredData'] = extractStructuredData($this->xpath);
             $seoInfo['deprecatedTags'] = checkDeprecatedHTMLTags($this->xpath);
             $seoInfo['inlineCss'] = extractInlineCSS($this->xpath);
-            
-            
-            
-            
+
+
+
+
             // Debug: Check nested tables with XPath query
             // $seoInfo['mixedContent'] = 
             $e = microtime(true);
@@ -123,7 +140,8 @@ class WebsiteSEOChecker
 
 
             // Analyze the HTML and get the most common keywords
-            $analyzer = new MostCommonKeywordsAnalyzer('partials/stopwords/en.json');
+            $stopwordFile = __DIR__ . '/partials/stopwords/en.json';
+            $analyzer = new MostCommonKeywordsAnalyzer($stopwordFile);
             $keywordsInfo = $analyzer->analyzeHTML($html);
 
             $seoInfo['404Page'] = is404Page($this->client, $url);
