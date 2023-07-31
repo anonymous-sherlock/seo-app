@@ -176,47 +176,46 @@ class WebsiteSEOChecker
     {
         try {
             $response = $this->client->get(
-            $url,
-            [
-                'headers' => [
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
-                    'Accept-Encoding' => 'gzip',
-                    // Enable gzip compression
-                ],
-                'on_stats' => function (TransferStats $stats) {
-                    $this->http2 = $stats->getHandlerStat('http_version') === 2;
-                },
-                'on_headers' => function (ResponseInterface $response) {
-                    $servers = array_filter($response->getHeader('server'), function ($value) {
-                        return !in_array($value, ['amazon', 'cloudflare', 'gws', 'Server', 'Apple', 'tsa_o', 'ATS']);
-                    });
-                    $this->hsts = count($response->getHeader('Strict-Transport-Security')) !== 0;
-                    $this->server = $servers;
-                    $this->encoding = $response->getHeader('x-encoded-content-encoding');
-                },
+                $url,
+                [
+                    'headers' => [
+                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
+                        'Accept-Encoding' => 'gzip',
+                        // Enable gzip compression
+                    ],
+                    'on_stats' => function (TransferStats $stats) {
+                        $this->http2 = $stats->getHandlerStat('http_version') === 2;
+                    },
+                    'on_headers' => function (ResponseInterface $response) {
+                        $servers = array_filter($response->getHeader('server'), function ($value) {
+                            return !in_array($value, ['amazon', 'cloudflare', 'gws', 'Server', 'Apple', 'tsa_o', 'ATS']);
+                        });
+                        $this->hsts = count($response->getHeader('Strict-Transport-Security')) !== 0;
+                        $this->server = $servers;
+                        $this->encoding = $response->getHeader('x-encoded-content-encoding');
+                    },
 
-                'timeout' => 5,
-                // Set a timeout of 5 seconds
-                'http_version' => '2.0',
-                // Use HTTP/2.0 if supported
-            ]
-        );
+                    'timeout' => 5,
+                    // Set a timeout of 5 seconds
+                    'http_version' => '2.0',
+                    // Use HTTP/2.0 if supported
+                ]
+            );
 
-        $contentEncoding = $response->getHeaderLine('Content-Encoding');
-        $body = (string) $response->getBody();
+            $contentEncoding = $response->getHeaderLine('Content-Encoding');
+            $body = (string) $response->getBody();
 
-        // Check if the response is gzippedcontent
-        if ($contentEncoding === 'gzip') {
-            // Uncompress the gzipped content
-            $body = gzdecode($body);
-        }
+            // Check if the response is gzippedcontent
+            if ($contentEncoding === 'gzip') {
+                // Uncompress the gzipped content
+                $body = gzdecode($body);
+            }
 
-        return $body;
+            return $body;
         } catch (\Throwable $th) {
             echo json_encode(['error' => 'Bad Request: Request Timed Out']);
             exit;
         }
-       
     }
 
     private function processHTML(&$seoInfo)
@@ -262,18 +261,12 @@ class WebsiteSEOChecker
 
         // Collect the image URLs to check for image formats
         $imageUrls = [];
-        $imagesWithoutAltText = [];
         foreach ($imageNodes as $imageNode) {
             $imageSrc = $imageNode->getAttribute('src');
             $imageUrls[] = $imageSrc;
             $imageAlt = $imageNode->getAttribute('alt');
             $imageTitle = $imageNode->getAttribute('title');
 
-            if (!empty($imageSrc)) {
-            // Check if the alt attribute is empty or not present
-            if (empty($imageAlt)) {
-                  $imagesWithoutAltText[] = $imageSrc;
-            }
             $imageInfo = [
                 'src' => $imageSrc,
                 'alt' => $imageAlt,
