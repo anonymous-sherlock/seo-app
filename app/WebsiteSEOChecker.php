@@ -174,7 +174,8 @@ class WebsiteSEOChecker
 
     private function fetchHTML($url)
     {
-        $response = $this->client->get(
+        try {
+            $response = $this->client->get(
             $url,
             [
                 'headers' => [
@@ -211,6 +212,11 @@ class WebsiteSEOChecker
         }
 
         return $body;
+        } catch (\Throwable $th) {
+            echo json_encode(['error' => 'Bad Request: Request Timed Out']);
+            exit;
+        }
+       
     }
 
     private function processHTML(&$seoInfo)
