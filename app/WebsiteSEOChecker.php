@@ -262,12 +262,18 @@ class WebsiteSEOChecker
 
         // Collect the image URLs to check for image formats
         $imageUrls = [];
+        $imagesWithoutAltText = [];
         foreach ($imageNodes as $imageNode) {
             $imageSrc = $imageNode->getAttribute('src');
             $imageUrls[] = $imageSrc;
             $imageAlt = $imageNode->getAttribute('alt');
             $imageTitle = $imageNode->getAttribute('title');
 
+            if (!empty($imageSrc)) {
+            // Check if the alt attribute is empty or not present
+            if (empty($imageAlt)) {
+                  $imagesWithoutAltText[] = $imageSrc;
+            }
             $imageInfo = [
                 'src' => $imageSrc,
                 'alt' => $imageAlt,
