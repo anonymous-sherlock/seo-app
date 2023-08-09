@@ -3,6 +3,8 @@ require_once __DIR__ . '/autoload.php';
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+
+
 if (isset($_POST['url'])) {
     $url = $_POST['url'];
 } elseif (isset($_GET['url'])) {

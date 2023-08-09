@@ -261,6 +261,8 @@ class WebsiteSEOChecker
 
         // Collect the image URLs to check for image formats
         $imageUrls = [];
+        $imagesWithoutAltText = [];
+
         foreach ($imageNodes as $imageNode) {
             $imageSrc = $imageNode->getAttribute('src');
             $imageUrls[] = $imageSrc;
@@ -272,8 +274,13 @@ class WebsiteSEOChecker
                 'alt' => $imageAlt,
                 'title' => $imageTitle,
             ];
+            if (empty($imageAlt)) {
+                $imagesWithoutAltText[] = $imageSrc;
+            }
             $seoInfo['images'][] = $imageInfo;
         }
+        // images with missing alt text 
+        $seoInfo['imagesWithoutAltText'] = $imagesWithoutAltText;
         // Fetch image formats asynchronously using the helper function
         $imageFormats = checkImageFormats($imageUrls); // Wait for the promises to complete
         $seoInfo['notModernImage'] = $imageFormats;
@@ -283,8 +290,6 @@ class WebsiteSEOChecker
         $endtime = microtime(true);
         $executionTime = $endtime - $starttime;
         // echo "Execution time: " . $executionTime . " seconds\n" . PHP_EOL;
-        // Add more code here to extract other SEO information as needed
-
         return $seoInfo;
     }
 }
