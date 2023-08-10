@@ -56,6 +56,8 @@ class WebsiteSEOChecker
     private $encoding = null;
     private $http2 = false;
     private $hsts = false;
+    private $pageData = null;
+
 
     public function __construct()
     {
@@ -292,4 +294,8 @@ class WebsiteSEOChecker
         // echo "Execution time: " . $executionTime . " seconds\n" . PHP_EOL;
         return $seoInfo;
     }
+
+
+
+
 }
